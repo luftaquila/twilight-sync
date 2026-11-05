@@ -1,0 +1,42 @@
+{
+  "manifest_version": 2,
+  "name": "Twilight Sync",
+  "version": "1.0.0",
+  "description": "Real-time sync of Zen Twilight spaces, essentials, pinned and open tabs, folders, split views, containers and keyboard shortcuts across devices.",
+  "author": "luftaquila",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "twilight-sync@luftaquila",
+      "strict_min_version": "140.0"
+    }
+  },
+
+  "permissions": ["storage", "clipboardWrite"],
+
+  "background": {
+    "page": "background/background.html"
+  },
+
+  "browser_action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": "icons/icon.svg",
+    "default_title": "Twilight Sync"
+  },
+
+  "icons": {
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg"
+  },
+
+  "experiment_apis": {
+    "twilightSync": {
+      "schema": "experiments/twilight/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["twilightSync"]],
+        "script": "experiments/twilight/api.js"
+      }
+    }
+  }
+}

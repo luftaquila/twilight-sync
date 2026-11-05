@@ -1,0 +1,20 @@
+services:
+  twilight-sync:
+    image: ghcr.io/luftaquila/twilight-sync:latest
+    container_name: twilight-sync
+    restart: unless-stopped
+    ports:
+      - "9223:9223"
+    volumes:
+      - twilight-sync-data:/data
+    environment:
+      - PORT=9223
+      # Own the token so the invite can always be reprinted:
+      #   docker exec twilight-sync node server.js --invite
+      # Generate one with: openssl rand -hex 32
+      # - SYNC_TOKEN=replace-me
+      # The address devices actually connect to (behind a TLS reverse proxy):
+      # - PUBLIC_URL=wss://sync.example.com
+
+volumes:
+  twilight-sync-data:

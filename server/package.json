@@ -1,0 +1,19 @@
+{
+  "name": "twilight-sync-server",
+  "version": "1.0.0",
+  "description": "Real-time sync server for the Twilight Sync extension (Zen Twilight)",
+  "type": "module",
+  "main": "server.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "invite": "node server.js --invite"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,138 @@
+[
+  {
+    "namespace": "twilightSync",
+    "description": "Chrome-side sync engine for Zen Twilight: capture, digest diff and apply of spaces, essentials, pinned and open tabs, folders, splits, containers and keyboard shortcuts.",
+    "functions": [
+      {
+        "name": "start",
+        "type": "function",
+        "async": true,
+        "description": "Starts the engine once the session is restored; resolves with the environment.",
+        "parameters": []
+      },
+      {
+        "name": "stop",
+        "type": "function",
+        "async": true,
+        "parameters": []
+      },
+      {
+        "name": "getEnvironment",
+        "type": "function",
+        "async": true,
+        "description": "Compatibility probe, platform, conflicting-engine state, provisioning prefs and options.",
+        "parameters": []
+      },
+      {
+        "name": "setOptions",
+        "type": "function",
+        "async": true,
+        "description": "Sets { normalTabs, shortcuts, keyMapping }. Resolves { options, keyMappingChanged }.",
+        "parameters": [
+          { "name": "options", "type": "object", "additionalProperties": { "type": "any" } }
+        ]
+      },
+      {
+        "name": "setSpacesEnginePref",
+        "type": "function",
+        "async": true,
+        "description": "Sets services.sync.engine.spaces (Zen's native Firefox Sync Spaces engine).",
+        "parameters": [{ "name": "enabled", "type": "boolean" }]
+      },
+      {
+        "name": "getFullProjection",
+        "type": "function",
+        "async": true,
+        "description": "Every current record as [{id, kind, data}].",
+        "parameters": []
+      },
+      {
+        "name": "getCounts",
+        "type": "function",
+        "async": true,
+        "parameters": []
+      },
+      {
+        "name": "applyRecords",
+        "type": "function",
+        "async": true,
+        "description": "Applies { records, deleted, reconcile, overrideGuard }. Resolves { failed, skipped, guard }.",
+        "parameters": [
+          { "name": "payload", "type": "object", "additionalProperties": { "type": "any" } }
+        ]
+      },
+      {
+        "name": "reconnectMerge",
+        "type": "function",
+        "async": true,
+        "description": "Applies the server's full record set preserving offline work: { records, overrideGuard }.",
+        "parameters": [
+          { "name": "payload", "type": "object", "additionalProperties": { "type": "any" } }
+        ]
+      },
+      {
+        "name": "markUploaded",
+        "type": "function",
+        "async": true,
+        "description": "Advances the baseline from an acknowledged payload: { records, deleted }.",
+        "parameters": [
+          { "name": "payload", "type": "object", "additionalProperties": { "type": "any" } }
+        ]
+      },
+      {
+        "name": "getGeneration",
+        "type": "function",
+        "async": true,
+        "parameters": []
+      },
+      {
+        "name": "setGeneration",
+        "type": "function",
+        "async": true,
+        "parameters": [{ "name": "generation", "type": "string" }]
+      },
+      {
+        "name": "resetBaseline",
+        "type": "function",
+        "async": true,
+        "parameters": []
+      },
+      {
+        "name": "forceCapture",
+        "type": "function",
+        "async": true,
+        "parameters": []
+      },
+      {
+        "name": "debugState",
+        "type": "function",
+        "async": true,
+        "parameters": []
+      },
+      {
+        "name": "log",
+        "type": "function",
+        "async": true,
+        "description": "Writes to Services.console (readable through Marionette).",
+        "parameters": [{ "name": "msg", "type": "string" }]
+      }
+    ],
+    "events": [
+      {
+        "name": "onLocalChanges",
+        "type": "function",
+        "description": "A capture found local changes: { changed: [{id, kind, data}], deleted: [ids] }.",
+        "parameters": [
+          { "name": "payload", "type": "object", "additionalProperties": { "type": "any" } }
+        ]
+      },
+      {
+        "name": "onEnvironmentChanged",
+        "type": "function",
+        "parameters": [
+          { "name": "payload", "type": "object", "additionalProperties": { "type": "any" } }
+        ]
+      }
+    ]
+  }
+]

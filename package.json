@@ -1,0 +1,15 @@
+{
+  "name": "twilight-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Real-time Zen Twilight sync: spaces, essentials, pinned and open tabs, folders, split views, containers and keyboard shortcuts",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"test/unit/*.test.mjs\"",
+    "test:server": "node --test \"test/server/*.test.mjs\"",
+    "test:all": "node --test \"test/unit/*.test.mjs\" \"test/server/*.test.mjs\"",
+    "e2e": "node test/e2e/run.mjs",
+    "build:xpi": "node scripts/build-xpi.mjs"
+  }
+}

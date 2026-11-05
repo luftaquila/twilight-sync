@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="../icons/icon.svg" alt="" width="20" height="20">
+      <span>Twilight Sync</span>
+    </div>
+    <span id="pill" class="pill">…</span>
+  </header>
+
+  <section id="banner" class="banner" hidden>
+    <p id="banner-text"></p>
+    <ul id="banner-list" hidden></ul>
+    <div class="row" id="banner-actions"></div>
+  </section>
+
+  <section id="initial" class="card emphasis" hidden>
+    <h2>First sync with this server</h2>
+    <p class="muted">The server already has data, and so does this browser. Choose how to combine them.</p>
+    <table class="compare">
+      <thead><tr><th></th><th>Server</th><th>This device</th></tr></thead>
+      <tbody id="compare-body"></tbody>
+    </table>
+    <div class="choices">
+      <button data-initial="replace" class="choice">
+        <strong>Use the server's</strong>
+        <span>Replace this browser's spaces, tabs and shortcuts with the server's.</span>
+      </button>
+      <button data-initial="merge" class="choice">
+        <strong>Merge both</strong>
+        <span>Keep everything from both sides. Duplicates are possible.</span>
+      </button>
+      <button data-initial="push" class="choice danger">
+        <strong>Use this device's</strong>
+        <span>Overwrite the server (and every other device) with this browser.</span>
+      </button>
+    </div>
+    <button data-initial="cancel" class="link">Cancel and disconnect</button>
+  </section>
+
+  <section id="guard" class="card emphasis" hidden>
+    <h2>Large deletion held back</h2>
+    <p id="guard-text"></p>
+    <div class="row">
+      <button id="guard-confirm" class="danger">Delete them</button>
+      <button id="guard-reject">Keep them and stop sync</button>
+    </div>
+  </section>
+
+  <section id="setup" class="card" hidden>
+    <h2>Connect</h2>
+    <label for="invite">Invite</label>
+    <textarea id="invite" rows="3" placeholder="twsync://sync.example.com/?t=…" spellcheck="false"></textarea>
+    <label for="setup-name">Device name</label>
+    <input id="setup-name" type="text" autocomplete="off">
+    <details>
+      <summary>Enter server and token manually</summary>
+      <label for="setup-url">Server URL</label>
+      <input id="setup-url" type="text" placeholder="wss://sync.example.com" spellcheck="false">
+      <label for="setup-token">Token</label>
+      <input id="setup-token" type="password" autocomplete="off">
+    </details>
+    <div class="row">
+      <button id="connect" class="primary">Connect</button>
+    </div>
+    <p id="setup-error" class="error" hidden></p>
+  </section>
+
+  <section id="overview" class="card" hidden>
+    <div class="kv">
+      <span>Device</span>
+      <span><input id="device-name" type="text" class="inline" autocomplete="off"></span>
+      <span>Server</span>
+      <span id="server-host" class="mono"></span>
+      <span>Last sync</span>
+      <span id="last-sync"></span>
+      <span>Zen</span>
+      <span id="zen-version"></span>
+    </div>
+    <div id="devices" class="devices"></div>
+    <div id="counts" class="counts"></div>
+  </section>
+
+  <section id="options" class="card" hidden>
+    <h2>Sync</h2>
+    <label class="check"><input type="checkbox" checked disabled> Spaces, essentials, pinned tabs, folders</label>
+    <label class="check"><input id="opt-normal" type="checkbox"> Open (unpinned) tabs</label>
+    <label class="check"><input id="opt-keys" type="checkbox"> Keyboard shortcuts</label>
+    <div id="mapping-row" class="mapping" hidden>
+      <label for="opt-mapping">Shortcut modifiers on other OSes</label>
+      <select id="opt-mapping">
+        <option value="physical">Same keys — Ctrl stays Ctrl, ⌘ is Win/Super</option>
+        <option value="swap">Swap — ⌘ becomes Ctrl, Ctrl becomes Win/Super</option>
+      </select>
+    </div>
+  </section>
+
+  <section id="actions" class="card" hidden>
+    <div class="row wrap">
+      <button id="copy-invite">Copy invite</button>
+      <button id="toggle">Disconnect</button>
+    </div>
+    <details>
+      <summary>Advanced</summary>
+      <div class="row wrap">
+        <button id="force-pull">Pull from server</button>
+        <button id="force-push" class="danger">Push this device</button>
+      </div>
+      <div class="row wrap">
+        <button id="admin-disable" class="danger">Disable sync everywhere</button>
+        <button id="admin-reset" class="danger">Reset server data</button>
+      </div>
+      <p class="muted small">Pull re-applies the server state here. Push makes this browser the source of truth for every device. Reset wipes the server and disconnects all devices.</p>
+    </details>
+  </section>
+
+  <p id="toast" class="toast" hidden></p>
+  <footer><span id="version"></span></footer>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

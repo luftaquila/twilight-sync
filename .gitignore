@@ -1,0 +1,9 @@
+node_modules/
+server/data/
+sync-state.json
+sync-state.json.tmp
+tokens.json
+*.xpi
+dist/
+.e2e/
+.DS_Store
