@@ -73,14 +73,20 @@ Put it behind a TLS-terminating reverse proxy for anything beyond a trusted LAN 
 
 On the first connection to a server that already has data, the popup asks how to combine it with this browser: **use the server's**, **merge both**, or **use this device's**. A fresh profile adopts the server's state automatically, and an empty server is seeded automatically.
 
-For unattended setup, the same can come from `user.js`:
+For unattended setup, with Zen closed, copy the `.xpi` into an existing profile as `extensions/twilight-sync@luftaquila.xpi` and put the rest in the profile's `user.js`:
 
 ```js
+user_pref("xpinstall.signatures.required", false);
+user_pref("extensions.experiments.enabled", true);
+user_pref("extensions.autoDisableScopes", 14);  // enable an extension placed in the profile without asking
+user_pref("extensions.startupScanScopes", 1);   // and start it on this launch, not only from the next one
 user_pref("extensions.twilightSync.invite", "twsync://sync.example.com/?t=<token>");
 user_pref("extensions.twilightSync.enabled", true);
 user_pref("extensions.twilightSync.deviceName", "Work laptop");     // optional
 user_pref("extensions.twilightSync.autoInitial", "merge");          // optional: replace | merge | push
 ```
+
+`user.js` is applied on every start and holds the token: once the device is connected, delete it and reset `extensions.twilightSync.invite`, `extensions.autoDisableScopes` and `extensions.startupScanScopes` in `about:config`.
 
 ## Behavior
 
