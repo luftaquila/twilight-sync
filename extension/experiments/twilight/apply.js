@@ -403,13 +403,15 @@
 
   function applyContainerUpserts(containers, fail) {
     const CIS = M().ContextualIdentityService;
+    const batchGuids = new Set(containers.map(entry => entry.key));
     for (const entry of containers) {
       const { key: guid, data } = entry;
       try {
         if (!data.name || !CIS) {
           continue;
         }
-        const mapped = TS.model.contextIdForGuid(guid);
+        const mapped =
+          TS.model.contextIdForGuid(guid) ?? TS.model.adoptMatchingContainer(guid, data, batchGuids);
         const existing = mapped !== null ? CIS.getPublicIdentityFromId(mapped) : null;
         if (existing) {
           if (existing.name !== data.name || existing.icon !== data.icon || existing.color !== data.color) {

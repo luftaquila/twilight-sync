@@ -37,6 +37,47 @@
 
   /* Mark: container identity */
 
+  // Zen's own Spaces sync keeps the same kind of userContextId → guid map
+  // (zen-spaces-sync.json). Devices that synced through it share those guids
+  // — built-in ones included, e.g. a "Work" container recreated as id 6 but
+  // known everywhere as "builtin-2" — so they are adopted instead of minting
+  // new ones; otherwise moving to Twilight Sync would duplicate containers.
+  function nativeModel() {
+    return TS.env?.modules?.ZenSpacesSyncModel || null;
+  }
+
+  function nativeGuidFor(id) {
+    try {
+      return nativeModel()?.guidForContextId(id) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function builtinIdOf(guid) {
+    if (typeof guid !== "string" || !guid.startsWith(BUILTIN_GUID_PREFIX)) {
+      return null;
+    }
+    const id = Number(guid.slice(BUILTIN_GUID_PREFIX.length));
+    return Number.isSafeInteger(id) && id > 0 && id <= BUILTIN_CONTAINER_MAX ? id : null;
+  }
+
+  /** Whether a local container other than `id` already answers to `guid`. */
+  function guidClaimedElsewhere(guid, id) {
+    const containers = store().containers;
+    if (Object.entries(containers).some(([k, g]) => g === guid && Number(k) !== id)) {
+      return true;
+    }
+    // An existing built-in container is "builtin-N" by its own id.
+    const builtin = builtinIdOf(guid);
+    return (
+      builtin !== null &&
+      builtin !== id &&
+      !(builtin in containers) &&
+      !!CIS()?.getPublicIdentityFromId(builtin)
+    );
+  }
+
   function guidForContextId(userContextId, { create = false } = {}) {
     const id = Number(userContextId);
     if (!Number.isSafeInteger(id) || id <= 0) {
@@ -51,12 +92,18 @@
       }
       return null;
     }
-    if (id <= BUILTIN_CONTAINER_MAX) {
-      return `${BUILTIN_GUID_PREFIX}${id}`;
-    }
     const existing = data.containers[id];
     if (existing) {
       return existing;
+    }
+    if (id <= BUILTIN_CONTAINER_MAX) {
+      return `${BUILTIN_GUID_PREFIX}${id}`;
+    }
+    const native = nativeGuidFor(id);
+    if (native && !guidClaimedElsewhere(native, id)) {
+      data.containers[id] = native;
+      TS.store.save();
+      return native;
     }
     if (!create) {
       return null;
@@ -83,14 +130,22 @@
         return null;
       }
     }
-    if (guid.startsWith(BUILTIN_GUID_PREFIX)) {
-      const id = Number(guid.slice(BUILTIN_GUID_PREFIX.length));
-      return Number.isSafeInteger(id) &&
-        id > 0 &&
-        id <= BUILTIN_CONTAINER_MAX &&
-        CIS()?.getPublicIdentityFromId(id)
-        ? id
-        : null;
+    const builtin = builtinIdOf(guid);
+    if (builtin !== null && !(builtin in data.containers) && CIS()?.getPublicIdentityFromId(builtin)) {
+      return builtin;
+    }
+    // Known only to Zen's own sync on this profile (e.g. a built-in container
+    // recreated under a new id): take its mapping over.
+    let native = null;
+    try {
+      native = nativeModel()?.contextIdForGuid(guid) ?? null;
+    } catch (e) {
+      native = null;
+    }
+    if (native !== null && !(native in data.containers) && CIS()?.getPublicIdentityFromId(native)) {
+      data.containers[native] = guid;
+      TS.store.save();
+      return native;
     }
     return null;
   }
@@ -98,6 +153,75 @@
   function registerContainerGuid(guid, userContextId) {
     store().containers[userContextId] = guid;
     TS.store.save();
+  }
+
+  /**
+   * One-time switch, per profile, to Zen's own container guids for containers
+   * this profile had already named itself before they were adopted (Twilight
+   * Sync 1.0.0 minted fresh guids). The old guid is then confirmed absent and
+   * deleted everywhere, the adopted one uploaded with every space and tab
+   * that uses the container. Returns the userContextIds that switched.
+   */
+  function adoptNativeContainerGuids() {
+    const data = store();
+    if (data.nativeContainersAdopted) {
+      return [];
+    }
+    const changed = [];
+    for (const identity of CIS()?.getPublicIdentities() || []) {
+      const id = identity.userContextId;
+      if (id <= BUILTIN_CONTAINER_MAX) {
+        continue;
+      }
+      const native = nativeGuidFor(id);
+      if (native && data.containers[id] !== native && !guidClaimedElsewhere(native, id)) {
+        data.containers[id] = native;
+        changed.push(id);
+      }
+    }
+    data.nativeContainersAdopted = true;
+    TS.store.save();
+    if (changed.length) {
+      invalidate();
+    }
+    return changed;
+  }
+
+  /**
+   * An incoming container nobody here knows may still be one this profile has
+   * under a guid it never shared: same name, icon and color, not built-in,
+   * unknown to Zen's own sync, its current guid neither uploaded from here nor
+   * part of the incoming batch. That container takes the incoming guid
+   * instead of a duplicate being created (two devices that each made "Work").
+   *
+   * @param {string} guid - the incoming guid (contextIdForGuid found nothing)
+   * @param {{name: string, icon: string, color: string}} incoming
+   * @param {Set<string>} batchGuids - every container guid in the batch
+   * @returns {number|null} the userContextId now mapped to `guid`
+   */
+  function adoptMatchingContainer(guid, { name, icon, color }, batchGuids) {
+    const data = store();
+    for (const identity of CIS()?.getPublicIdentities() || []) {
+      const id = identity.userContextId;
+      if (id <= BUILTIN_CONTAINER_MAX || identity.name !== name) {
+        continue;
+      }
+      if ((identity.icon || "") !== (icon || "") || (identity.color || "") !== (color || "")) {
+        continue;
+      }
+      const mapped = data.containers[id];
+      if (mapped && (data.uploaded[mapped] || batchGuids.has(mapped))) {
+        continue;
+      }
+      if (nativeGuidFor(id)) {
+        continue;
+      }
+      data.containers[id] = guid;
+      TS.store.save();
+      invalidate();
+      return id;
+    }
+    return null;
   }
 
   function forgetContainerGuid(guid) {
@@ -300,6 +424,8 @@
     contextIdForGuid,
     registerContainerGuid,
     forgetContainerGuid,
+    adoptNativeContainerGuids,
+    adoptMatchingContainer,
     current,
     invalidate,
     computeChanges,

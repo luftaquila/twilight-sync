@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Twilight Sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Real-time sync of Zen Twilight spaces, essentials, pinned and open tabs, folders, split views, containers and keyboard shortcuts across devices.",
   "author": "luftaquila",
 

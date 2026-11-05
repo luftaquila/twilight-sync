@@ -174,6 +174,10 @@
     if (!state.started) {
       return getEnvironment();
     }
+    const adopted = TS.model.adoptNativeContainerGuids();
+    if (adopted.length) {
+      TS.env.diag(`took over Zen's own guids for containers ${adopted.join(", ")}`);
+    }
     reconcileStartupLoss();
 
     for (const win of Services.wm.getEnumerator("navigator:browser")) {

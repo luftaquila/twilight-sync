@@ -8,6 +8,8 @@
  *               — what the server holds for each id, as far as we know
  *               (advanced only from acknowledged payloads and applied records)
  *   containers  { userContextId: guid } — per-profile container identity map
+ *   nativeContainersAdopted  true once Zen's own container guids were taken
+ *               over (model.adoptNativeContainerGuids, runs once)
  *   holds       { tabId: { url, title, icon, localUrl, since } } — remote
  *               navigations not yet materialized on a loaded tab
  */

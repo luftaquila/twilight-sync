@@ -877,14 +877,46 @@ try {
     extraBrowsers.push(C);
     const local = await C.openTab(page(90));
     await C.exec(`W.gBrowser.pinTab(el(arguments[0]));`, [local]);
+    // Containers: one that Zen's own sync named (a built-in recreated under a
+    // new id) keeps that shared guid; one made here with the same name, icon
+    // and color as a server container (G4C) is reused, not duplicated.
+    const nativeCtx = await C.exec(`
+      if (CIS().getPublicIdentityFromId(2)) CIS().remove(2);
+      const work = CIS().create('Native Work', 'briefcase', 'orange');
+      ChromeUtils.importESModule('resource:///modules/zen/ZenSpacesSyncModel.sys.mjs')
+        .ZenSpacesSyncModel.registerContainerGuid('builtin-2', work.userContextId);
+      CIS().create('E2E Container', 'fingerprint', 'purple');
+      return work.userContextId;
+    `);
     await sleep(1500);
     await C.install();
     await waitFor(async () => (await C.tab(seed.t2))?.pinned, { timeout: 90000, label: "server's pinned tab on C" });
     await waitFor(async () => (await A.tab(local))?.pinned, { timeout: 30000, label: "C's own tab on A" });
     assert(await C.tab(local), 'C lost its own tab');
+    await waitFor(() => observer.records.get('builtin-2')?.data?.name === 'Native Work', {
+      timeout: 30000,
+      label: "C's container under Zen's guid on the server",
+    });
+    // A gets it once — as its own built-in 2 if it has one (Twilight profiles
+    // start without built-ins), otherwise as a new container mapped to it.
+    await waitFor(
+      async () => (await A.exec(`return CIS().getPublicIdentities().filter(i => i.name === 'Native Work').length;`)) === 1,
+      { timeout: 30000, label: "C's container on A" }
+    );
+    const containerNames = [...observer.records.values()].filter(r => r.kind === 'container').map(r => r.data?.name);
+    for (const name of ['E2E Container', 'Native Work']) {
+      const n = containerNames.filter(x => x === name).length;
+      assert(n === 1, `${n} '${name}' records on the server: ${JSON.stringify(containerNames)}`);
+    }
+    const onC = await C.exec(`return CIS().getPublicIdentities().filter(i => i.name === 'E2E Container').length;`);
+    assert(onC === 1, `${onC} 'E2E Container' containers on C`);
+    const works = await C.exec(`return CIS().getPublicIdentities().filter(i => i.name === 'Native Work').map(i => i.userContextId);`);
+    assert(works.length === 1 && works[0] === nativeCtx, `C's 'Native Work' containers: ${JSON.stringify(works)}`);
+    await sleep(3000);
+    await quietFor(10000, 'three devices after the merge');
     await C.quit();
     extraBrowsers.splice(extraBrowsers.indexOf(C), 1);
-    return 'union';
+    return `union; containers ${JSON.stringify(containerNames)}`;
   });
 
   await gate('G16', 'closing nearly every tab asks first, then deletes everywhere after confirmations', async () => {

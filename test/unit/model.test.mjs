@@ -183,3 +183,111 @@ test('container guids: built-ins are fixed, others are minted once and remembere
   assert.equal(TS.model.contextIdForGuid('builtin-1'), 9);
   assert.equal(TS.model.guidForContextId(9), 'builtin-1');
 });
+
+/** Zen's own ZenSpacesSyncModel container map, as the engine sees it. */
+function nativeModel(identities, map) {
+  return {
+    guidForContextId(id) {
+      if (!identities.has(id)) return null;
+      return id <= 4 ? `builtin-${id}` : map[id] || null;
+    },
+    contextIdForGuid(guid) {
+      for (const [id, g] of Object.entries(map)) if (g === guid) return identities.has(Number(id)) ? Number(id) : null;
+      const m = /^builtin-(\d)$/.exec(guid);
+      return m && Number(m[1]) <= 4 && identities.has(Number(m[1])) ? Number(m[1]) : null;
+    },
+  };
+}
+
+function useContainers(identities, native) {
+  TS.env.modules.ContextualIdentityService = {
+    getPublicIdentities: () => [...identities.values()],
+    getPublicIdentityFromId: id => identities.get(id) || null,
+  };
+  if (native) TS.env.modules.ZenSpacesSyncModel = native;
+}
+
+test("container guids: Zen's own map is taken over instead of minting", () => {
+  const identities = new Map([
+    [6, { userContextId: 6, name: 'Work', icon: 'briefcase', color: 'pink' }],
+    [7, { userContextId: 7, name: 'DIY', icon: 'chill', color: 'green' }],
+    [8, { userContextId: 8, name: 'Fresh', icon: 'dollar', color: 'blue' }],
+  ]);
+  useContainers(identities, nativeModel(identities, { 6: 'builtin-2', 7: 'builtin-3' }));
+  assert.equal(TS.model.guidForContextId(6), 'builtin-2');
+  assert.equal(storeData.containers[6], 'builtin-2');
+  // Incoming records resolve through it too.
+  assert.equal(TS.model.contextIdForGuid('builtin-3'), 7);
+  assert.equal(storeData.containers[7], 'builtin-3');
+  // Unknown to Zen: minted as before.
+  assert.equal(TS.model.guidForContextId(8), null);
+  assert.match(TS.model.guidForContextId(8, { create: true }), /^[0-9a-f-]{36}$/);
+});
+
+test("container guids: Zen's guid is not taken when a live built-in already answers to it", () => {
+  const identities = new Map([
+    [2, { userContextId: 2, name: 'Work', icon: 'briefcase', color: 'orange' }],
+    [6, { userContextId: 6, name: 'Work', icon: 'briefcase', color: 'pink' }],
+  ]);
+  useContainers(identities, nativeModel(identities, { 6: 'builtin-2' }));
+  assert.equal(TS.model.guidForContextId(2), 'builtin-2');
+  const six = TS.model.guidForContextId(6, { create: true });
+  assert.notEqual(six, 'builtin-2');
+  assert.equal(TS.model.contextIdForGuid('builtin-2'), 2);
+  assert.equal(TS.model.contextIdForGuid(six), 6);
+});
+
+test("container guids: a profile that minted its own guids switches to Zen's once", () => {
+  const identities = new Map([
+    [6, { userContextId: 6, name: 'Work', icon: 'briefcase', color: 'pink' }],
+    [7, { userContextId: 7, name: 'Mine', icon: 'tree', color: 'green' }],
+  ]);
+  useContainers(identities);
+  storeData.containers = { 6: 'minted-6', 7: 'minted-7' };
+  sidebar.spaces[0].containerTabId = 6;
+  sync();
+  assert.ok(storeData.uploaded['minted-6']);
+  assert.equal(storeData.uploaded.ws1.k, 'space');
+
+  useContainers(identities, nativeModel(identities, { 6: 'builtin-2' }));
+  assert.deepEqual(plain(TS.model.adoptNativeContainerGuids()), [6]);
+  assert.deepEqual(plain(storeData.containers), { 6: 'builtin-2', 7: 'minted-7' });
+  assert.deepEqual(plain(TS.model.adoptNativeContainerGuids()), [], 'runs once');
+
+  TS.model.invalidate();
+  const { changed, deleted } = TS.model.computeChanges();
+  const byId = new Map(changed.map(c => [c.id, c]));
+  assert.equal(byId.get('builtin-2')?.data.name, 'Work');
+  assert.equal(byId.get('ws1')?.data.containerGuid, 'builtin-2');
+  assert.ok(!byId.has('minted-7'));
+  assert.deepEqual(plain(deleted), ['minted-6']);
+});
+
+test('container guids: an unshared local container with the same name, icon and color takes an incoming guid', () => {
+  const identities = new Map([
+    [2, { userContextId: 2, name: 'Shop', icon: 'cart', color: 'red' }],
+    [8, { userContextId: 8, name: 'Shop', icon: 'cart', color: 'red' }],
+    [9, { userContextId: 9, name: 'Bank', icon: 'dollar', color: 'green' }],
+  ]);
+  const native = {};
+  useContainers(identities, nativeModel(identities, native));
+  const shop = { name: 'Shop', icon: 'cart', color: 'red' };
+  storeData.containers = { 8: 'local-8', 9: 'local-9' };
+
+  // Differences, or a guid already uploaded / in the same batch, never match.
+  assert.equal(TS.model.adoptMatchingContainer('remote', { ...shop, color: 'blue' }, new Set(['remote'])), null);
+  storeData.uploaded['local-8'] = { k: 'container', h: 'x', s: '' };
+  assert.equal(TS.model.adoptMatchingContainer('remote', shop, new Set(['remote'])), null);
+  delete storeData.uploaded['local-8'];
+  assert.equal(TS.model.adoptMatchingContainer('remote', shop, new Set(['remote', 'local-8'])), null);
+  native[8] = 'zen-guid';
+  assert.equal(TS.model.adoptMatchingContainer('remote', shop, new Set(['remote'])), null, "known to Zen's sync");
+  delete native[8];
+
+  // Built-in 2 is skipped; 8 is taken, and only once per batch.
+  const batch = new Set(['remote', 'remote-2']);
+  assert.equal(TS.model.adoptMatchingContainer('remote', shop, batch), 8);
+  assert.equal(storeData.containers[8], 'remote');
+  assert.equal(TS.model.contextIdForGuid('remote'), 8);
+  assert.equal(TS.model.adoptMatchingContainer('remote-2', shop, batch), null);
+});

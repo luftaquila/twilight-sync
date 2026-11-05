@@ -86,6 +86,13 @@
     "ZenLiveFoldersManager",
     { optional: true }
   );
+  // Zen's own Spaces sync model, used only for its container guid map.
+  load(
+    "ZenSpacesSyncModel",
+    ["resource:///modules/zen/ZenSpacesSyncModel.sys.mjs"],
+    "ZenSpacesSyncModel",
+    { optional: true }
+  );
   load(
     "ContextualIdentityService",
     [

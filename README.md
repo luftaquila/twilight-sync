@@ -93,6 +93,8 @@ user_pref("extensions.twilightSync.autoInitial", "merge");          // optional:
 
 **Pinned and essential tabs** sync their pin target, like Zen's own sync: browsing inside a pinned tab doesn't change it anywhere; changing the pinned URL does.
 
+**Containers** keep the identity Zen's own Spaces sync gave them: a profile that used it carries on with the same container ids (a deleted built-in recreated under a new id included), so switching to Twilight Sync doesn't duplicate them on other devices. A container another device made with the same name, icon and color as one here that was never synced is reused rather than duplicated.
+
 **Keyboard shortcuts** sync as physical keys (Ctrl, Alt, Shift, ⌘/Super). The default keeps the same physical key on every OS — Ctrl+T on a Mac becomes Ctrl+T on Windows. On a Mac whose keymap is built around ⌘, choose **Swap** in the popup so ⌘ maps to Ctrl elsewhere. A shortcut that needs the Win key can't be bound on Windows and is skipped there.
 
 **Safety.**
