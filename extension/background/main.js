@@ -287,7 +287,7 @@ async function handleServerMessage(msg) {
     case 'force_disable':
       return onForceDisable(msg);
     case 'error':
-      s.lastError = msg.message || msg.code || 'server error';
+      s.lastError = msg.message || msg.code || 'Server error';
       console.warn('[TwilightSync] server error:', msg);
       return notifyPopup();
   }
@@ -384,7 +384,7 @@ async function initialChoice(mode) {
   if (result?.error || wholesale) {
     console.error('[TwilightSync] initial apply failed wholesale', result?.error);
     notifyPopup();
-    return { success: false, error: result?.error || 'apply failed (no browser window?)' };
+    return { success: false, error: result?.error || "Couldn't apply the server's data. Open a browser window and try again." };
   }
   await engine().setGeneration(generation);
   s.pendingInitial = null;
@@ -403,13 +403,13 @@ async function initialChoice(mode) {
 
 async function pushLocal(purpose) {
   const records = await engine().getFullProjection();
-  if (!records) return { success: false, error: 'projection unavailable' };
+  if (!records) return { success: false, error: "Couldn't read this browser's tabs." };
   const reqId = `r${++putSeq}`;
   const baseVersion = purpose === 'initial' ? s.pendingInitial?.version ?? s.serverVersion : s.serverVersion;
   s.replace = { reqId, records, purpose, retries: s.replace?.purpose === purpose ? s.replace.retries : 0 };
   if (!transport.send({ type: 'replace', reqId, records, baseVersion })) {
     s.replace = null;
-    return { success: false, error: 'not connected' };
+    return { success: false, error: 'Not connected' };
   }
   return { success: true };
 }
@@ -754,5 +754,5 @@ globalThis.addEventListener('unhandledrejection', event => {
 
 init().catch(e => {
   console.error('[TwilightSync] init failed', e);
-  s.lastError = `init failed: ${e?.message || e}`;
+  s.lastError = `Twilight Sync failed to start: ${e?.message || e}`;
 });

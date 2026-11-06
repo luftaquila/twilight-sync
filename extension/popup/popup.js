@@ -17,12 +17,12 @@ const STATUS = {
   reconnecting: ['Reconnecting…', 'warn'],
   disconnected: ['Disconnected', 'warn'],
   syncing: ['Syncing', 'ok'],
-  awaiting_initial: ['Choose first sync', 'warn'],
+  awaiting_initial: ['Choice needed', 'warn'],
   pushing: ['Uploading…', 'warn'],
   guard: ['Needs confirmation', 'bad'],
   incompatible: ['Unsupported Zen', 'bad'],
-  spaces_conflict: ['Conflict', 'bad'],
-  auth_failed: ['Bad token', 'bad'],
+  spaces_conflict: ['Zen sync is on', 'bad'],
+  auth_failed: ['Invalid token', 'bad'],
   protocol_mismatch: ['Version mismatch', 'bad'],
 };
 
@@ -105,11 +105,10 @@ function render(st) {
 
   show('banner', false);
   if (st.status === 'incompatible') {
-    banner('This Zen build is missing internals Twilight Sync needs, so sync is disabled to protect your data.', {
-      list: st.env?.missing,
-    });
+    const missing = st.env?.missing || [];
+    banner(`This Zen build isn't supported, so sync is off.${missing.length ? ' Missing:' : ''}`, { list: missing });
   } else if (st.status === 'spaces_conflict') {
-    banner("Zen's own Spaces sync (Firefox Sync) is on. Two syncers over the same tabs would fight each other.", {
+    banner("Zen's own Spaces sync (Firefox Sync) is on. Turn it off to use Twilight Sync.", {
       actions: [
         {
           label: 'Turn off Zen Spaces sync',
@@ -124,7 +123,7 @@ function render(st) {
   } else if (st.status === 'auth_failed') {
     banner('The server rejected the token. Paste a fresh invite.');
   } else if (st.status === 'protocol_mismatch') {
-    banner('The server speaks a different protocol version. Update the server or the extension.');
+    banner('The server uses a different protocol version. Update the server or the extension.');
   } else if (st.lastError && st.status !== 'syncing') {
     banner(st.lastError);
   }
@@ -297,7 +296,7 @@ $('copy-invite').addEventListener('click', async () => {
   const { invite } = (await send({ type: 'get_invite' })) || {};
   if (!invite) return toast('Nothing to copy yet');
   await navigator.clipboard.writeText(invite);
-  toast('Invite copied — it contains the token, share it privately');
+  toast('Invite copied. It contains your token, so share it privately.');
 });
 
 $('toggle').addEventListener('click', async () => {
@@ -317,9 +316,9 @@ $('force-push').addEventListener('click', async event => {
 });
 
 $('admin-disable').addEventListener('click', async event => {
-  if (!armed(event.currentTarget, 'Click again to disconnect all')) return;
+  if (!armed(event.currentTarget, 'Click again to disconnect every device')) return;
   const r = await send({ type: 'admin', action: 'disable_all' });
-  toast(r?.success ? 'Sent' : r?.error || 'Failed');
+  toast(r?.success ? 'Sync turned off on every device' : r?.error || 'Failed');
 });
 
 $('admin-reset').addEventListener('click', async event => {

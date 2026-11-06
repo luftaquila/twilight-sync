@@ -123,7 +123,7 @@ function handleHello(ws, msg) {
       type: 'error',
       code: 'protocol_mismatch',
       protocol: PROTOCOL_VERSION,
-      message: `Server speaks protocol v${PROTOCOL_VERSION}, client v${msg.protocol}`,
+      message: `Server uses protocol v${PROTOCOL_VERSION}, client v${msg.protocol}`,
     });
     ws.close(4003, 'protocol mismatch');
     return false;
@@ -228,7 +228,7 @@ function handleAdmin(ws, info, msg) {
     send(ws, { type: 'admin_ok', action: 'disable_all' });
     broadcast({ type: 'force_disable', reason: 'admin' });
   } else {
-    send(ws, { type: 'error', code: 'bad_request', message: 'unknown admin action' });
+    send(ws, { type: 'error', code: 'bad_request', message: 'Unknown admin action' });
   }
 }
 
@@ -275,7 +275,7 @@ wss.on('connection', (ws, req, authenticated) => {
   let authed = false;
   const authTimer = setTimeout(() => {
     if (!authed) {
-      send(ws, { type: 'error', code: 'auth_timeout', message: 'Authentication timeout' });
+      send(ws, { type: 'error', code: 'auth_timeout', message: 'Authentication timed out' });
       ws.close(4002, 'auth timeout');
     }
   }, AUTH_TIMEOUT_MS);
@@ -295,7 +295,7 @@ wss.on('connection', (ws, req, authenticated) => {
     }
     if (!authed) {
       if (msg?.type !== 'hello') {
-        send(ws, { type: 'error', code: 'auth_required', message: 'Say hello first' });
+        send(ws, { type: 'error', code: 'auth_required', message: 'Not authenticated' });
         return;
       }
       authed = handleHello(ws, msg);
