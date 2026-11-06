@@ -2,7 +2,7 @@
   "name": "twilight-sync",
   "version": "1.0.0",
   "private": true,
-  "description": "Real-time Zen Twilight sync: spaces, essentials, pinned and open tabs, folders, split views, containers and keyboard shortcuts",
+  "description": "Real-time Zen Browser sync: spaces, essentials, pinned and open tabs, folders, split views, containers and keyboard shortcuts",
   "type": "module",
   "license": "MIT",
   "scripts": {

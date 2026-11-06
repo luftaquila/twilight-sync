@@ -1,7 +1,7 @@
 {
   "name": "twilight-sync-server",
   "version": "1.0.0",
-  "description": "Real-time sync server for the Twilight Sync extension (Zen Twilight)",
+  "description": "Real-time sync server for the Twilight Sync extension (Zen Browser)",
   "type": "module",
   "main": "server.js",
   "license": "MIT",

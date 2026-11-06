@@ -2,9 +2,9 @@
 
 ## Project
 
-Twilight Sync: a Firefox WebExtension with a privileged experiment API plus a small WebSocket server that syncs Zen Browser **Twilight** in real time — spaces, essentials, pinned tabs, folders, open (unpinned) tabs, split views, containers and `about:keyboard` shortcuts — across macOS, Windows and Linux.
+Twilight Sync: a Firefox WebExtension with a privileged experiment API plus a small WebSocket server that syncs Zen Browser in real time — spaces, essentials, pinned tabs, folders, open (unpinned) tabs, split views, containers and `about:keyboard` shortcuts — across macOS, Windows and Linux.
 
-Ground-up rewrite of `zen-sidebar-sync` against Twilight 1.25t (Gecko 159) internals. It replaces Zen's native Firefox-Sync Spaces engine (`services.sync.engine.spaces` must be off while connected).
+Ground-up rewrite of `zen-sidebar-sync` against Twilight 1.25t (Gecko 159) internals. Supported from **Zen 1.24b** (release and Twilight), the first release with Zen's own shortcuts in `about:keyboard` (gh-16163); every other internal the engine touches exists from 1.21.16b (traced through the Zen source tags, 2026-11-07), and older builds fail the probe below 1.21.4b. End-to-end verified on Twilight 1.25t only. It replaces Zen's native Firefox-Sync Spaces engine (`services.sync.engine.spaces` must be off while connected).
 
 ## Layout
 

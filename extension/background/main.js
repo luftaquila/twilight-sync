@@ -72,7 +72,7 @@ async function saveConfig(patch) {
 
 function defaultDeviceName() {
   const names = { macosx: 'Mac', win: 'Windows', linux: 'Linux' };
-  return s.env?.hostName || names[s.env?.platform] || 'Zen Twilight';
+  return s.env?.hostName || names[s.env?.platform] || 'Zen';
 }
 
 /* Mark: startup */

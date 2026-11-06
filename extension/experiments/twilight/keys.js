@@ -2,7 +2,7 @@
  * twilight-sync engine — keyboard shortcut sync.
  *
  * Firefox's CustomKeys (about:keyboard; Zen moved its own shortcuts there in
- * 1.25t) keeps customizations in <profile>/customKeys.json as
+ * 1.24b, gh-16163) keeps customizations in <profile>/customKeys.json as
  *   { "<key element id>": { modifiers: "accel,shift", key: "T" } | {} }
  * where {} means "shortcut cleared". It has no change notification and its
  * state object is module-private, so the file is watched (mtime poll) and
