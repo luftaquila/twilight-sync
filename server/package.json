@@ -11,9 +11,21 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "invite": "node server.js --invite"
+    "invite": "node server.js --invite",
+    "dev:worker": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "SYNC_TOKEN": {
+        "description": "Token every device presents to connect. Generate one with `openssl rand -hex 32` and keep it: the invite is `twsync://<worker host>/?t=<token>`."
+      }
+    }
   }
 }

@@ -31,6 +31,14 @@ jobs:
       - name: Server protocol tests
         run: npm run test:server
 
+      # Same suite against the Cloudflare Worker under wrangler dev
+      # (local wrangler dev stalls intermittently on Windows).
+      - name: Server protocol tests (Cloudflare Worker)
+        if: runner.os != 'Windows'
+        env:
+          SYNC_SERVER: worker
+        run: npm run test:server
+
   extension:
     name: Build extension
     runs-on: ubuntu-latest

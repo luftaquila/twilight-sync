@@ -1,13 +1,14 @@
-// Drives the real server over its WebSocket protocol.
+// Drives the real server over its WebSocket protocol: the Node server, or the
+// Cloudflare Worker under `wrangler dev` with SYNC_SERVER=worker.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { randomBytes } from 'node:crypto';
+import { SERVER_TARGET, startSyncServer, stopSyncServer } from '../helpers/sync-server.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const WebSocket = createRequire(join(root, 'server/package.json'))('ws');
@@ -16,26 +17,12 @@ const PORT = 19000 + Math.floor(Math.random() * 1000);
 let dataDir;
 let proc;
 
-function startServer() {
-  proc = spawn(process.execPath, [join(root, 'server/server.js')], {
-    env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: dataDir, SYNC_TOKEN: TOKEN },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  proc.stderr.on('data', () => {});
-  return new Promise((resolve, reject) => {
-    proc.stdout.on('data', chunk => {
-      if (String(chunk).includes('Twilight Sync server on')) resolve();
-    });
-    proc.once('exit', code => reject(new Error(`server exited ${code}`)));
-  });
+async function startServer() {
+  proc = await startSyncServer({ port: PORT, dataDir, token: TOKEN });
 }
 
 function stopServer(signal = 'SIGTERM') {
-  return new Promise(resolve => {
-    if (!proc || proc.exitCode !== null) return resolve();
-    proc.once('exit', resolve);
-    proc.kill(signal);
-  });
+  return stopSyncServer(proc, signal);
 }
 
 class Client {
@@ -124,7 +111,7 @@ before(async () => {
 
 after(async () => {
   await stopServer();
-  rmSync(dataDir, { recursive: true, force: true });
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 });
 
 test('health endpoint', async () => {
@@ -153,7 +140,8 @@ test('a socket sending more than a hello before authenticating is dropped; authe
   await new Promise(resolve => noisy.once('open', resolve));
   const closed = new Promise(resolve => noisy.once('close', code => resolve(code)));
   noisy.send(JSON.stringify({ type: 'hello', padding: 'x'.repeat(64 * 1024) }));
-  assert.equal(await closed, 1006);
+  // Node destroys the socket (1006); the Worker closes it (1009).
+  assert.ok([1006, 1009].includes(await closed));
 
   // ~200 KB of hex stays above the pre-auth limit even when compressed.
   const a = await Client.connect();
@@ -300,8 +288,10 @@ test('state survives a restart; admin reset gives a new generation and disables 
     await new Promise(r => setTimeout(r, 1000));
   }
   await stopServer('SIGTERM');
-  const saved = JSON.parse(readFileSync(join(dataDir, 'sync-state.json'), 'utf-8'));
-  assert.ok(saved.records.persist, 'state was saved (SIGTERM flushes the debounced save on POSIX)');
+  if (SERVER_TARGET === 'node') {
+    const saved = JSON.parse(readFileSync(join(dataDir, 'sync-state.json'), 'utf-8'));
+    assert.ok(saved.records.persist, 'state was saved (SIGTERM flushes the debounced save on POSIX)');
+  }
   await startServer();
 
   const b = await Client.connect();

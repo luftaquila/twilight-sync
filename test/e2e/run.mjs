@@ -16,6 +16,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { Marionette } from './marionette.mjs';
+import { SERVER_TARGET, startSyncServer as startServerProcess, stopSyncServer as stopServerProcess } from '../helpers/sync-server.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const WebSocket = createRequire(join(root, 'server/package.json'))('ws');
@@ -39,7 +40,7 @@ const HTTP_PORT = SYNC_PORT + 1;
 const TOKEN = 'e2e-token';
 const WORK = process.env.E2E_WORK || mkdtempSync(join(tmpdir(), 'twsync-e2e-'));
 mkdirSync(WORK, { recursive: true });
-console.log(`workdir ${WORK}\nzen ${ZEN_BIN}`);
+console.log(`workdir ${WORK}\nzen ${ZEN_BIN}\nserver ${SERVER_TARGET}`);
 
 /* Mark: reporting */
 
@@ -116,26 +117,12 @@ mkdirSync(serverDir, { recursive: true });
 const serverLog = createWriteStream(join(WORK, 'server.log'), { flags: 'a' });
 let serverProc = null;
 
-function startSyncServer() {
-  return new Promise((resolve, reject) => {
-    serverProc = spawn(process.execPath, [join(root, 'server/server.js')], {
-      env: { ...process.env, PORT: String(SYNC_PORT), HOST: '127.0.0.1', DATA_DIR: serverDir, SYNC_TOKEN: TOKEN },
-    });
-    serverProc.stdout.pipe(serverLog);
-    serverProc.stderr.pipe(serverLog);
-    serverProc.stdout.on('data', chunk => {
-      if (String(chunk).includes('Twilight Sync server on')) resolve();
-    });
-    serverProc.once('exit', code => reject(new Error(`server exited ${code}`)));
-  });
+async function startSyncServer() {
+  serverProc = await startServerProcess({ port: SYNC_PORT, dataDir: serverDir, token: TOKEN, onOutput: chunk => serverLog.write(chunk) });
 }
 
 function stopSyncServer() {
-  return new Promise(resolve => {
-    if (!serverProc || serverProc.exitCode !== null) return resolve();
-    serverProc.once('exit', resolve);
-    serverProc.kill('SIGKILL');
-  });
+  return stopServerProcess(serverProc, 'SIGKILL');
 }
 
 const pageServer = http.createServer((req, res) => {
