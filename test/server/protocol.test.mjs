@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { randomBytes } from 'node:crypto';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const WebSocket = createRequire(join(root, 'server/package.json'))('ws');
@@ -144,6 +145,23 @@ test('bad token and protocol mismatch are refused', async () => {
   const mismatch = await old.next('error');
   assert.equal(mismatch.code, 'protocol_mismatch');
   assert.equal(mismatch.protocol, 1);
+});
+
+test('a socket sending more than a hello before authenticating is dropped; authenticated ones are not limited', async () => {
+  const noisy = new WebSocket(`ws://127.0.0.1:${PORT}/`, { perMessageDeflate: false });
+  noisy.on('error', () => {});
+  await new Promise(resolve => noisy.once('open', resolve));
+  const closed = new Promise(resolve => noisy.once('close', code => resolve(code)));
+  noisy.send(JSON.stringify({ type: 'hello', padding: 'x'.repeat(64 * 1024) }));
+  assert.equal(await closed, 1006);
+
+  // ~200 KB of hex stays above the pre-auth limit even when compressed.
+  const a = await Client.connect();
+  a.send({ type: 'put', reqId: 'big', records: [tab('big', undefined, { title: randomBytes(100 * 1024).toString('hex') })], deleted: [] });
+  assert.deepEqual((await a.next('put_ok', m => m.reqId === 'big')).accepted, ['big']);
+  a.send({ type: 'put', reqId: 'big-gone', records: [], deleted: ['big'] });
+  await a.next('put_ok', m => m.reqId === 'big-gone');
+  a.close();
 });
 
 test('put is acknowledged, broadcast to others, and idempotent', async () => {

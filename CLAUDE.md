@@ -73,6 +73,7 @@ key       { keyId, mods: [alt|ctrl|meta|shift], key, keycode, cleared }
 - Idempotent puts (same digest → no version bump, no broadcast). Space deletion cascades to records still placed in it unless re-placed in the same put.
 - Validation per kind (id/data agreement, http(s) tab URLs, key modifiers), icons > 128 KB dropped, records > 512 KB rejected.
 - `perMessageDeflate`, any upgrade path (reverse-proxy subpaths), `/healthz`, ping/terminate heartbeat, a reconnecting `deviceId` replaces its stale socket.
+- Unauthenticated sockets: closed after 10 s, or destroyed once they have sent more than 16 KB of raw bytes (a meter on the upgraded socket until `hello` is accepted), so nothing unauthenticated is buffered up to `maxPayload` (64 MB). Clients send nothing but `hello` before `welcome`.
 - Tokens: SHA-256 hashes in `tokens.json` (0600); `SYNC_TOKEN` registered idempotently; `--invite` prints the invite.
 
 ## Commands

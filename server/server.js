@@ -32,6 +32,10 @@ const PUBLIC_URL = process.env.PUBLIC_URL || '';
 const MASS_DELETE_MIN = 30;
 const MASS_DELETE_RATIO = 0.9;
 const AUTH_TIMEOUT_MS = 10000;
+// Before its hello is accepted a client sends nothing but the hello (well
+// under 1 KB), so a socket that sends more is dropped as the bytes arrive
+// instead of being buffered up to maxPayload.
+const PRE_AUTH_MAX_BYTES = 16 * 1024;
 const HEARTBEAT_MS = 30000;
 
 mkdirSync(DATA_DIR, { recursive: true });
@@ -248,10 +252,26 @@ const wss = new WebSocketServer({
 
 // Any path upgrades, so reverse-proxy subpaths work unchanged.
 httpServer.on('upgrade', (req, socket, head) => {
-  wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
+  wss.handleUpgrade(req, socket, head, ws => {
+    // Counts raw socket bytes (`head` is pushed back into the socket, so it
+    // is counted too) until the connection authenticates.
+    let metering = true;
+    let received = 0;
+    const meter = chunk => {
+      if (!metering) return;
+      received += chunk.length;
+      if (received > PRE_AUTH_MAX_BYTES) socket.destroy();
+    };
+    socket.on('data', meter);
+    const authenticated = () => {
+      metering = false;
+      socket.off('data', meter);
+    };
+    wss.emit('connection', ws, req, authenticated);
+  });
 });
 
-wss.on('connection', ws => {
+wss.on('connection', (ws, req, authenticated) => {
   let authed = false;
   const authTimer = setTimeout(() => {
     if (!authed) {
@@ -279,7 +299,10 @@ wss.on('connection', ws => {
         return;
       }
       authed = handleHello(ws, msg);
-      if (authed) clearTimeout(authTimer);
+      if (authed) {
+        clearTimeout(authTimer);
+        authenticated();
+      }
       return;
     }
     const info = clients.get(ws);
