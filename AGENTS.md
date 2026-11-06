@@ -30,9 +30,14 @@
 - Record ids are Zen's own: tab `zenSyncId`, folder DOM id, space `uuid`, split `groupId`; plus container guids, `layout`, `key:<key element id>`
   - Record shapes in `project.js`; wire messages in the header of `extension/common/protocol.js`
 - Replaces Zen's own Spaces sync; `services.sync.engine.spaces` off while connected
-- Server: one Node process, one versioned record per id, tombstones kept `TOMBSTONE_TTL_MS`
+- Server: one versioned record per id, tombstones kept `TOMBSTONE_TTL_MS`
+  - Two hosts over one implementation: message handling `lib/hub.js`, record map `lib/state.js`
+  - Node host `server.js`: state in one JSON file (`lib/store.js`), tokens as SHA-256 hashes (`lib/tokens.js`)
+  - Cloudflare host `worker.js`: one Durable Object `SyncRoom`, a row per record in its SQLite storage, Hibernation API WebSockets, the auth timeout on an alarm, token from the `SYNC_TOKEN` secret
+  - `SyncRoom` loads the record map on first use after a wake; pings never touch storage
+  - `server/` self-contained (no imports from outside it): the Deploy to Cloudflare button uses it as the repository root
   - Space deletion cascades to records still placed in it unless re-placed in the same put
-  - Clients send only `hello` before `welcome`; the server destroys unauthenticated sockets past `PRE_AUTH_MAX_BYTES`
+  - Clients send only `hello` before `welcome`; both hosts drop unauthenticated sockets past `PRE_AUTH_MAX_BYTES`
 
 ## Sync invariants
 - Echo prevention stateless. Baseline per id advanced only from:
@@ -90,10 +95,42 @@
 - Behavior changes update this file; `README.md` only for setup and the compatibility note
 - Release: `v<version>` tag matching `extension/manifest.json` runs `release.yml`. Tags and releases only on user request
 
+## Hosting
+- Two hosts: self-hosted Node server behind Tailscale, and a Cloudflare Worker in the user's own account
+- `README.md` lists the self-hosted option first and states the Cloudflare trade-off next to the Deploy button: records unencrypted at Cloudflare, Worker on the public internet with the token as the only gate
+- Self-hosted setup in `README.md` reachable only inside the user's tailnet, HTTPS from `tailscale serve`
+- Self-hosted Docker image built by `container.yml`
+- Deploy to Cloudflare button pointing at `server/` on `main`
+  - Each user's Worker deploys from a copy of `server/` in their own GitHub account, independent of this repository
+  - Button configuration: `server/wrangler.jsonc`, `server/.dev.vars.example`, `cloudflare.bindings` in `server/package.json`
+- Maintainer Worker deploy: `npm run deploy` in `server` after `wrangler login`, token through `wrangler secret put SYNC_TOKEN`
+- Worker deploys only on user request
+- Worker host `<worker>.<subdomain>.workers.dev`; invite format in the header of `extension/common/invite.js`
+
+## Device setup
+- Interactive setup in `README.md`; this section is the unattended one for an agent
+- Profile must exist first: run Zen once (a headless `--screenshot` run is enough), then close it
+- `.xpi` copied to `<profile>/extensions/twilight-sync@luftaquila.xpi` while Zen is closed
+- `<profile>/user.js` while Zen is closed
+  - `xpinstall.signatures.required` false, `extensions.experiments.enabled` true
+  - `extensions.autoDisableScopes` 14 and `extensions.startupScanScopes` 1: the sideloaded extension enabled without a prompt and started on the first launch
+  - `services.sync.engine.spaces` false (Zen's own Spaces sync blocks connecting)
+  - `extensions.twilightSync.invite` (the invite), `extensions.twilightSync.enabled` true
+  - Optional: `extensions.twilightSync.deviceName`, `extensions.twilightSync.autoInitial`, `zen.welcome-screen.seen` true
+- Provisioning prefs adopted only by a profile without stored connection settings
+- `extensions.twilightSync.autoInitial` (`replace`, `merge`, `push`) applies only when the server already has data
+  - Unset: a fresh profile replaces, any other profile asks in the popup
+  - Profile with its own tabs: the value chosen by the user
+- After the first sync: `user.js` deleted (it holds the token and applies on every start); `extensions.twilightSync.invite`, `autoInitial`, `deviceName`, `extensions.autoDisableScopes`, `extensions.startupScanScopes` reset
+- Prefs read through Marionette are not the profile's own values (the Remote Agent overrides `extensions.autoDisableScopes`)
+- Invites and tokens never printed
+
 ## Verification
 - `npm test`; `npm run test:server` after `npm ci` in `server`; `npm run e2e` with `ZEN_BIN` set to the Zen binary
   - `E2E_ONLY=G1,G3` selected gates, `E2E_BAIL=1` stop at the first failure, `E2E_WORK=<dir>` keep profiles and logs, `E2E_HEALTH=1` check after each gate that new tabs still get a Zen sync id, `E2E_KEEP=1` leave browsers and servers running after a failure, `E2E_TRACE_WS=1` record ZenWindowSync events on A
   - `test/e2e/probe.mjs` runs chrome JS in a throwaway profile; `test/e2e/attach.mjs` in a running browser
+- `SYNC_SERVER=worker` runs the server tests and E2E against the Worker under `wrangler dev` (`test/helpers/sync-server.mjs`); server changes pass both hosts
+  - Worker runs on macOS or Linux only; local `wrangler dev` on Windows stalls intermittently
 - Passing unit and server tests do not verify browser behavior; engine changes need an E2E run
 - Not covered by E2E: Linux browsers, several windows per profile, live folders, long offline periods (tombstone GC), real network failures
 - Marionette
