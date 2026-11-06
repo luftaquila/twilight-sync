@@ -157,10 +157,11 @@
 
   /**
    * One-time switch, per profile, to Zen's own container guids for containers
-   * this profile had already named itself before they were adopted (Twilight
-   * Sync 1.0.0 minted fresh guids). The old guid is then confirmed absent and
-   * deleted everywhere, the adopted one uploaded with every space and tab
-   * that uses the container. Returns the userContextIds that switched.
+   * this profile had already named itself before they were adopted
+   * (pre-release builds of Twilight Sync minted fresh guids). The old guid is
+   * then confirmed absent and deleted everywhere, the adopted one uploaded
+   * with every space and tab that uses the container. Returns the
+   * userContextIds that switched.
    */
   function adoptNativeContainerGuids() {
     const data = store();

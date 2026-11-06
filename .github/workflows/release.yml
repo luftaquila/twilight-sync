@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    name: Publish .xpi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Check tag against manifest version
+        run: |
+          version="$(jq -r .version extension/manifest.json)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match manifest version $version"
+            exit 1
+          fi
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Tests
+        run: npm run test:all
+
+      - name: Build .xpi
+        run: npm run build:xpi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.xpi --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
